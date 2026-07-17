@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::msg::*;
@@ -14,14 +15,16 @@ const TTL: u64 = Duration::from_millis(100).as_nanos() as u64;
 #[derive(Clone, Default)]
 pub struct TimestampOracle {
     // You definitions here if needed.
+    last_timestamp: AtomicU64,
 }
 
 #[async_trait::async_trait]
 impl timestamp::Service for TimestampOracle {
     // example get_timestamp RPC handler.
     async fn get_timestamp(&self, _: TimestampRequest) -> labrpc::Result<TimestampResponse> {
-        // Your code here.
-        unimplemented!()
+        let next_ts = self.last_timestamp.fetch_add(1, Ordering::SeqCst);
+
+        Ok(TimestampResponse{next_ts})
     }
 }
 

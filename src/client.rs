@@ -19,13 +19,18 @@ const RETRY_TIMES: usize = 3;
 #[derive(Clone)]
 pub struct Client {
     // Your definitions here.
+    tso_client: TSOClient,
+    txn_client: TransactionClient
 }
 
 impl Client {
     /// Creates a new Client.
     pub fn new(tso_client: TSOClient, txn_client: TransactionClient) -> Client {
         // Your code here.
-        Client {}
+        Client {
+            tso_client,
+            txn_client
+        }
     }
 
     /// Gets a timestamp from a TSO.
