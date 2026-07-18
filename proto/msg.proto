@@ -11,22 +11,46 @@ syntax = "proto3";
 
 package msg;
 
+enum Column {
+    Write = 0;
+    Data = 1;
+    Lock = 2;
+}
+
 message TimestampRequest {}
 
 message TimestampResponse {
   uint64 timestamp = 1;
 }
 
-message GetRequest {}
-
-message GetResponse {}
-
-message PrewriteRequest {}
-
-message PrewriteResponse {}
-
-message CommitRequest {
-    bool is_primary = 1;
+message GetRequest {
+  bytes  key = 1;
+  uint64 ts_start = 2;
 }
 
-message CommitResponse {}
+message GetResponse {
+  bytes  value = 1;
+  bool   is_found = 2;
+}
+
+message PrewriteRequest {
+  bytes  key = 1;
+  bytes  value = 2;
+  bytes  primary = 3;
+  uint64 ts_start = 4;
+}
+
+message PrewriteResponse {
+  bool success = 1;
+}
+
+message CommitRequest {
+  bytes  key = 1;
+  bool is_primary = 2;
+  uint64 ts_start = 3;
+  uint64 ts_commit = 4;
+}
+
+message CommitResponse {
+  bool success = 1;
+}
