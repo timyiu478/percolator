@@ -5,7 +5,7 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
-use labrpc::*;
+use labrpc::{Error, Network, Result, RpcHooks, ServerBuilder};
 use prost::Message;
 
 use crate::client::Client;

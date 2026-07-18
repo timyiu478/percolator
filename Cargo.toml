@@ -14,8 +14,8 @@ log = "0.4"
 prost = "0.6"
 prost-derive = "0.6"
 
-labrpc = { path = "../labrpc" }
-labcodec = { path = "../labcodec" }
+labrpc = { path = "labrpc" }
+labcodec = { path = "labcodec" }
 
 [build-dependencies]
 prost-build = "0.6"

@@ -16,7 +16,7 @@ const TTL: u64 = Duration::from_millis(100).as_nanos() as u64;
 #[derive(Clone, Default)]
 pub struct TimestampOracle {
     // You definitions here if needed.
-    last_timestamp: AtomicU64,
+    last_timestamp: std::sync::Arc<AtomicU64>,
 }
 
 #[async_trait::async_trait]
@@ -39,7 +39,7 @@ pub enum Value {
 }
 
 #[derive(Debug, Clone)]
-pub struct Write(Vec<u8>, Vec<u8>);
+pub struct Write(pub Vec<u8>, pub Vec<u8>);
 
 pub enum Column {
     Write,
@@ -71,7 +71,7 @@ impl KvTable {
             Column::Write => &self.write,
             Column::Data => &self.data,
             Column::Lock => &self.lock,
-        }
+        };
 
         let start_ts = ts_start_inclusive.unwrap_or(0);
         let end_ts = ts_end_inclusive.unwrap_or(std::u64::MAX);
@@ -86,10 +86,10 @@ impl KvTable {
     #[inline]
     fn write(&mut self, key: Vec<u8>, column: Column, ts: u64, value: Value) {
         let mut map = match column {
-            Column::Write => &self.write,
-            Column::Data => &self.data,
-            Column::Lock => &self.lock,
-        }
+            Column::Write => &mut self.write,
+            Column::Data => &mut self.data,
+            Column::Lock => &mut self.lock,
+        };
 
         map.insert((key, ts), value);
     }
@@ -98,12 +98,12 @@ impl KvTable {
     // Erases a record from a specified column in MemoryStorage.
     fn erase(&mut self, key: Vec<u8>, column: Column, commit_ts: u64) {
         let mut map = match column {
-            Column::Write => &self.write,
-            Column::Data => &self.data,
-            Column::Lock => &self.lock,
-        }
+            Column::Write => &mut self.write,
+            Column::Data => &mut self.data,
+            Column::Lock => &mut self.lock,
+        };
 
-        map.remove((key, commit_ts));
+        map.remove(&(key, commit_ts));
     }
 }
 
@@ -119,7 +119,6 @@ impl transaction::Service for MemoryStorage {
     // example get RPC handler.
     // ref: paper's figure 6 line 8 - 24
     async fn get(&self, req: GetRequest) -> labrpc::Result<GetResponse> {
-
         let ts_start = Some(req.ts_start);
         let key = req.key;
 
@@ -163,7 +162,7 @@ impl transaction::Service for MemoryStorage {
         let mut data = self.data.lock().unwrap();
 
         // Abort on writes after our start timestamp
-        if data.read(req.key.clone(), Column::Write, Some(req.ts_start), None).is_some() || data.read(key.clone(), Column::Lock, None, None).is_some() {
+        if data.read(req.key.clone(), Column::Write, Some(req.ts_start), None).is_some() || data.read(req.key.clone(), Column::Lock, None, None).is_some() {
             return Ok(PrewriteResponse{
                 success: false
             });
@@ -174,7 +173,7 @@ impl transaction::Service for MemoryStorage {
 
         Ok(PrewriteResponse{
             success: true
-        });
+        })
     }
 
     // example commit RPC handler.
