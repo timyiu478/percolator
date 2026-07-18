@@ -1,0 +1,4 @@
+cargo:rustc-env=PROTOC=/Users/timyiu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-build-0.6.1/third-party/protobuf/protoc-osx-x86_64
+cargo:rustc-env=PROTOC_INCLUDE=/Users/timyiu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/prost-build-0.6.1/third-party/protobuf/include
+cargo:rerun-if-env-changed=PROTOC
+cargo:rerun-if-env-changed=PROTOC_INCLUDE
