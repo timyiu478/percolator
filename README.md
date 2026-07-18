@@ -32,14 +32,7 @@ and to accommodate a compact in-memory implementation. Key differences:
 handler. This keeps client code simpler but centralizes complexity on the
 server.
 
-2. Lock erasure and tombstones
-   - Paper: Bigtable supports range tombstones; clients call `T.Erase(row,
-     lock_col, commit_ts)` to remove lock variants up to a timestamp.
-   - This repo: the in-memory layer uses a Rust `BTreeMap<(Vec<u8>, u64),
-     Value>` which requires exact-key deletions. The server explicitly deletes
-locks at recorded coordinates rather than issuing range tombstones.
-
-3. Concurrency granularity
+2. Concurrency granularity
    - Paper: leverages Bigtable single-row transactions for row-level atomicity
      and high throughput across keys.
    - This repo: simulates row-level atomicity with a global `Mutex` wrapping
@@ -80,5 +73,5 @@ finished in 0.83
 References
 ----------
 
-- Large-scale Incremental Processing Using Distributed Transactions, 2010. [https://www.usenix.org/legacy/event/osdi10/tech/full_papers/Peng.pdf]
+- (Large-scale Incremental Processing Using Distributed Transactions, 2010.)[https://www.usenix.org/legacy/event/osdi10/tech/full_papers/Peng.pdf]
 
