@@ -1,22 +1,84 @@
 # Percolator
 
-A distributed transaction model developed by Google to support ACID-compliant transactions across large-scale, distributed storage 
+A educational implementation of Google's Percolator-style distributed transactions in Rust.
 
-## Implementation Deviations from the Percolator Paper (Figure 6)
+Table of Contents:
 
-This repository implements a distributed transaction engine inspired by Google's Percolator. While the core 2-Phase Commit (2PC) logic remains identical to Figure 6 of the original paper, there are three key architectural deviations designed to simplify the laboratory environment.
+- [Overview](#overview)
+- [Differences from the Percolator paper](#differences-from-the-percolator-paper)
+- [Testing](#testing)
+- [References](#references)
 
-### 1. "Smart Server" vs. "Smart Client"
+Overview
+--------
 
-* **The Paper:** The client library acts as the "Smart Coordinator." It continuously queries Bigtable, looping to check locks, handling exponential backoffs, and executing roll-forwards/roll-backs locally before reading data. Bigtable acts as a "dumb" storage layer.
-* **This Lab:** The architecture shifts weight to a "Smart Server." The collision resolution and back-off loop (`back_off_maybe_clean_up_lock`) are executed directly within the server's `get` RPC handler. This reduces network chatter and simplifies the client library.
+This repository provides an educational, simplified implementation of the
+Percolator transaction model (two-phase commit with distributed locking and
+timestamped commits). The goal is to make the paper's ideas concrete for
+learning and experiments, not to be a production-ready distributed database.
 
-### 2. Lock Erasure and Tombstones
 
-* **The Paper:** Bigtable supports range tombstones. When the client commits, it calls `T.Erase(row, lock_col, commit_ts)`, instructing Bigtable to delete all lock variants up to the `commit_ts`.
-* **This Lab:** The memory layer uses a standard Rust `BTreeMap<(Vec<u8>, u64), Value>`, requiring exact coordinate matches. Instead of a range tombstone, the server explicitly erases locks at their exact staging timestamp by passing `start_ts` to the `erase` method.
+Differences from the Percolator paper
+-------------------------------------
 
-### 3. Concurrency Granularity
+This project intentionally deviates from the original paper to simplify the lab
+and to accommodate a compact in-memory implementation. Key differences:
 
-* **The Paper:** Server-side atomicity relies on Bigtable's single-row transactions (`StartRowTransaction()`), allowing high throughput across different keys.
-* **This Lab:** Row-level atomicity is simulated using a global `Mutex` wrapping the `KvTable`. Each RPC (`prewrite`, `commit`, `get`) briefly locks the entire table to ensure atomic checks and mutations.
+1. "Smart Server" vs. "Smart Client"
+   - Paper: the client library is the smart coordinator that polls, backoffs,
+     and cleans up locks.
+   - This repo: the server takes on collision resolution and the
+     backoff/cleanup loop (`back_off_maybe_clean_up_lock`) inside the `get` RPC
+handler. This keeps client code simpler but centralizes complexity on the
+server.
+
+2. Lock erasure and tombstones
+   - Paper: Bigtable supports range tombstones; clients call `T.Erase(row,
+     lock_col, commit_ts)` to remove lock variants up to a timestamp.
+   - This repo: the in-memory layer uses a Rust `BTreeMap<(Vec<u8>, u64),
+     Value>` which requires exact-key deletions. The server explicitly deletes
+locks at recorded coordinates rather than issuing range tombstones.
+
+3. Concurrency granularity
+   - Paper: leverages Bigtable single-row transactions for row-level atomicity
+     and high throughput across keys.
+   - This repo: simulates row-level atomicity with a global `Mutex` wrapping
+     the `KvTable`. Each RPC briefly locks the entire table to guarantee
+atomicity for checks and mutations. This reduces concurrency and is intended
+only for a lab environment.
+
+
+Testing
+-------
+
+Run `cargo test`.
+
+The test workload focuses on verifying ACID transactional guarantees and fault tolerance under simulated concurrency and network anomalies.
+
+```
+$ cargo test
+...
+running 13 tests
+test tests::test_predicate_many_preceders_read_predicates ... ok
+test tests::test_lost_update ... ok
+test tests::test_anti_dependency_cycles ... ok
+test tests::test_predicate_many_preceders_write_predicates ... ok
+test tests::test_read_skew_predicate_dependencies ... ok
+test tests::test_read_skew_read_only ... ok
+test tests::test_read_skew_write_predicate ... ok
+test tests::test_write_skew ... ok
+test tests::test_commit_primary_success_without_response ... ok
+test tests::test_commit_primary_fail ... ok
+test tests::test_get_timestamp_under_unreliable_network ... ok
+test tests::test_commit_primary_success ... ok
+test tests::test_commit_primary_drop_secondary_requests ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+finished in 0.83
+```
+
+References
+----------
+
+- Large-scale Incremental Processing Using Distributed Transactions, 2010. [https://www.usenix.org/legacy/event/osdi10/tech/full_papers/Peng.pdf]
+
