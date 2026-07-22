@@ -1,8 +1,9 @@
 # Percolator
 
-A educational implementation of Google's Percolator-style distributed transactions in Rust.
+An educational implementation of Google's Percolator-style distributed transactions in Rust.
 
-Table of Contents:
+Table of Contents
+-----------------
 
 - [Overview](#overview)
 - [Differences from the Percolator paper](#differences-from-the-percolator-paper)
@@ -24,12 +25,12 @@ Differences from the Percolator paper
 This project intentionally deviates from the original paper to simplify the lab
 and to accommodate a compact in-memory implementation. Key differences:
 
-1. "Smart Server" vs. "Smart Client"
+1. "Smart Server" vs "Smart Client"
    - Paper: the client library is the smart coordinator that polls, backoffs,
      and cleans up locks.
    - This repo: the server takes on collision resolution and the
      backoff/cleanup loop (`back_off_maybe_clean_up_lock`) inside the `get` RPC
-handler. This keeps client code simpler but centralizes complexity on the
+handler. This keeps client code simpler but centralises complexity on the
 server.
 
 2. Concurrency granularity
@@ -73,5 +74,5 @@ finished in 0.83
 References
 ----------
 
-- (Large-scale Incremental Processing Using Distributed Transactions, 2010.)[https://www.usenix.org/legacy/event/osdi10/tech/full_papers/Peng.pdf]
+- [Large-scale Incremental Processing Using Distributed Transactions, 2010](https://www.usenix.org/legacy/event/osdi10/tech/full_papers/Peng.pdf)
 
