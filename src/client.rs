@@ -2,7 +2,7 @@ use labrpc::*;
 use std::{thread, time};
 
 use crate::msg::*;
-use crate::server::{Write};
+use crate::server::Write;
 use crate::service::{TSOClient, TransactionClient};
 
 // BACKOFF_TIME_MS is the wait time before retrying to send the request.
@@ -35,13 +35,13 @@ impl Client {
             tso_client,
             txn_client,
             start_ts: 0,
-            writes: Vec::new()
+            writes: Vec::new(),
         }
     }
 
     /// Gets a timestamp from a TSO.
     pub fn get_timestamp(&self) -> Result<u64> {
-        let request = TimestampRequest{};
+        let request = TimestampRequest {};
 
         let mut bf_time_ms = BACKOFF_TIME_MS;
 
@@ -73,9 +73,9 @@ impl Client {
 
     /// Gets the value for a given key.
     pub fn get(&self, key: Vec<u8>) -> Result<Vec<u8>> {
-        let request = GetRequest{
+        let request = GetRequest {
             key,
-            ts_start: self.start_ts
+            ts_start: self.start_ts,
         };
 
         let mut bf_time_ms = BACKOFF_TIME_MS;
@@ -90,8 +90,10 @@ impl Client {
                     } else {
                         return Ok(Vec::new());
                     }
-                },
-                Err(e) => { eprintln!("RPC failure getting timestamp: {:?}", e); }
+                }
+                Err(e) => {
+                    eprintln!("RPC failure getting timestamp: {:?}", e);
+                }
             }
             if attempt < RETRY_TIMES - 1 {
                 thread::sleep(time::Duration::from_millis(bf_time_ms));
@@ -152,7 +154,7 @@ impl Client {
                         err = Some(e);
                     }
                 }
-                
+
                 if attempt < RETRY_TIMES - 1 {
                     thread::sleep(time::Duration::from_millis(bf_time_ms));
                     bf_time_ms *= 2;
@@ -208,7 +210,7 @@ impl Client {
 
         if !primary_committed {
             if let Some(e) = err {
-                // If the error guarantees the request never reached the server ("reqhook"), 
+                // If the error guarantees the request never reached the server ("reqhook"),
                 // we know definitively that the transaction aborted.
                 if let labrpc::Error::Other(ref msg) = e {
                     if msg == "reqhook" {
@@ -238,13 +240,15 @@ impl Client {
             };
 
             let mut bf_time_ms = BACKOFF_TIME_MS;
-            
+
             for attempt in 0..RETRY_TIMES {
                 let rpc_future = self.txn_client.commit(&commit_req);
 
                 match futures::executor::block_on(rpc_future) {
                     Ok(r) => {
-                        if r.success { break; }
+                        if r.success {
+                            break;
+                        }
                     }
                     Err(e) => {
                         eprintln!("RPC failure committing secondary: {:?}", e);

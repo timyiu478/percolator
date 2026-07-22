@@ -1,7 +1,7 @@
-use std::ops::Bound;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::ops::Bound;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::msg::*;
@@ -25,7 +25,7 @@ impl timestamp::Service for TimestampOracle {
     async fn get_timestamp(&self, _: TimestampRequest) -> labrpc::Result<TimestampResponse> {
         let timestamp = self.last_timestamp.fetch_add(1, Ordering::SeqCst);
 
-        Ok(TimestampResponse{timestamp})
+        Ok(TimestampResponse { timestamp })
     }
 }
 
@@ -138,7 +138,9 @@ impl transaction::Service for MemoryStorage {
 
             if let Some((_, write_val)) = data.read(key.clone(), Column::Write, None, ts_start) {
                 if let Value::Timestamp(ts_data) = write_val {
-                    if let Some((k, data_val)) = data.read(key.clone(), Column::Data, Some(*ts_data), Some(*ts_data)) {
+                    if let Some((k, data_val)) =
+                        data.read(key.clone(), Column::Data, Some(*ts_data), Some(*ts_data))
+                    {
                         if let Value::Vector(raw_bytes) = data_val {
                             return Ok(GetResponse {
                                 value: raw_bytes.clone(),
@@ -149,10 +151,10 @@ impl transaction::Service for MemoryStorage {
                 }
             }
 
-            return Ok(GetResponse{
+            return Ok(GetResponse {
                 is_found: false,
                 ..Default::default()
-            })
+            });
         }
     }
 
@@ -162,18 +164,30 @@ impl transaction::Service for MemoryStorage {
         let mut data = self.data.lock().unwrap();
 
         // Abort on writes after our start timestamp
-        if data.read(req.key.clone(), Column::Write, Some(req.ts_start), None).is_some() || data.read(req.key.clone(), Column::Lock, None, None).is_some() {
-            return Ok(PrewriteResponse{
-                success: false
-            });
+        if data
+            .read(req.key.clone(), Column::Write, Some(req.ts_start), None)
+            .is_some()
+            || data
+                .read(req.key.clone(), Column::Lock, None, None)
+                .is_some()
+        {
+            return Ok(PrewriteResponse { success: false });
         }
 
-        data.write(req.key.clone(), Column::Data, req.ts_start, Value::Vector(req.value));
-        data.write(req.key, Column::Lock, req.ts_start, Value::Vector(req.primary));
+        data.write(
+            req.key.clone(),
+            Column::Data,
+            req.ts_start,
+            Value::Vector(req.value),
+        );
+        data.write(
+            req.key,
+            Column::Lock,
+            req.ts_start,
+            Value::Vector(req.primary),
+        );
 
-        Ok(PrewriteResponse{
-            success: true
-        })
+        Ok(PrewriteResponse { success: true })
     }
 
     // example commit RPC handler.
@@ -181,20 +195,29 @@ impl transaction::Service for MemoryStorage {
     async fn commit(&self, req: CommitRequest) -> labrpc::Result<CommitResponse> {
         let mut data = self.data.lock().unwrap();
 
-        if data.read(req.key.clone(), Column::Lock, Some(req.ts_start), Some(req.ts_start)).is_none() {
-            return Ok(CommitResponse{
-                success: false
-            });
+        if data
+            .read(
+                req.key.clone(),
+                Column::Lock,
+                Some(req.ts_start),
+                Some(req.ts_start),
+            )
+            .is_none()
+        {
+            return Ok(CommitResponse { success: false });
         }
 
-        data.write(req.key.clone(), Column::Write, req.ts_commit, Value::Timestamp(req.ts_start));
+        data.write(
+            req.key.clone(),
+            Column::Write,
+            req.ts_commit,
+            Value::Timestamp(req.ts_start),
+        );
 
         // this maps directly to line 57 in the pseudo-code, adapted for our BTreeMap storage
         data.erase(req.key, Column::Lock, req.ts_start);
 
-        Ok(CommitResponse{
-            success: true
-        })
+        Ok(CommitResponse { success: true })
     }
 }
 
@@ -203,19 +226,26 @@ impl MemoryStorage {
         std::thread::sleep(std::time::Duration::from_nanos(TTL));
 
         let mut data = self.data.lock().unwrap();
-        
+
         // fetch the lock payload to read the primary key pointer
-        if let Some((_, Value::Vector(primary_key))) = data.read(key.clone(), Column::Lock, Some(start_ts), Some(start_ts)) {
+        if let Some((_, Value::Vector(primary_key))) =
+            data.read(key.clone(), Column::Lock, Some(start_ts), Some(start_ts))
+        {
             let primary_key = primary_key.clone();
 
             // Check if the Primary Key was committed
             let primary_write = data.read(primary_key.clone(), Column::Write, Some(start_ts), None);
-            
+
             if let Some((write_key, Value::Timestamp(target_start_ts))) = primary_write {
                 if *target_start_ts == start_ts {
                     // Primary committed. Roll forward
                     let commit_ts = write_key.1;
-                    data.write(key.clone(), Column::Write, commit_ts, Value::Timestamp(start_ts));
+                    data.write(
+                        key.clone(),
+                        Column::Write,
+                        commit_ts,
+                        Value::Timestamp(start_ts),
+                    );
                     data.erase(key, Column::Lock, start_ts);
                     return;
                 }
